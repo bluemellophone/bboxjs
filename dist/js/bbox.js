@@ -58,18 +58,18 @@ TODO
     $.fn.swapWith = function(that) {
         // http://stackoverflow.com/a/38515050/1413865
 
-        var $this = this;
-        var $that = $(that);
+        var $this = this
+        var $that = $(that)
 
         // create temporary placeholder
-        var $temp = $("<div>");
+        var $temp = $("<div>")
 
         // 3-step swap
-        $this.before($temp);
-        $that.before($this);
-        $temp.after($that).remove();
+        $this.before($temp)
+        $that.before($this)
+        $temp.after($that).remove()
 
-        return $this;
+        return $this
     }
 
     BBoxSelector = (function() {
@@ -93,6 +93,7 @@ TODO
             options.limits.bounds.y     !== undefined || (options.limits.bounds.y = {})
             options.limits.bounds.y.min !== undefined || (options.limits.bounds.y.min = 0)
             options.limits.bounds.y.max !== undefined || (options.limits.bounds.y.max = 0)
+            options.modes               !== undefined || (options.modes = ["rectangle", "diagonal", "diagonal2"])
             options.mode                !== undefined || (options.mode = "rectangle")
             options.debug               !== undefined || (options.debug = false)
 
@@ -168,7 +169,11 @@ TODO
                 case "rectangle":
                 case "diagonal":
                 case "diagonal2":
-                    this.options.mode = proposed_mode
+                    if (this.options.modes.indexOf(proposed_mode) == -1) {
+                        console.log("[BBoxSelector] User disabled selection mode provided: " + proposed_mode)
+                    } else {
+                        this.options.mode = proposed_mode
+                    }
                     break
                 default:
                     console.log("[BBoxSelector] Invalid selection mode provided: " + proposed_mode)
@@ -342,10 +347,10 @@ TODO
             data.pixels.width = data.pixels.xbr - data.pixels.xtl
             data.pixels.height = data.pixels.ybr - data.pixels.ytl
 
-            data.pixels.hypo = Math.sqrt(data.pixels.width ** 2 + data.pixels.height ** 2)
+            data.pixels.hypo = Math.sqrt(Math.pow(data.pixels.width, 2) + Math.pow(data.pixels.height, 2))
             diff_x = data.pixels.middle.x - data.pixels.cursor.x
             diff_y = data.pixels.middle.y - data.pixels.cursor.y
-            data.pixels.right = Math.sqrt(diff_x ** 2 + diff_y ** 2)
+            data.pixels.right = Math.sqrt(Math.pow(diff_x, 2) + Math.pow(diff_y, 2))
 
             data.angles.origin = calculate_angle(data.pixels.origin, data.pixels.middle)
             data.angles.middle = calculate_angle(data.pixels.middle, data.pixels.cursor)
@@ -546,8 +551,9 @@ TODO
             options.actions.subentry.deletion    !== undefined || (options.actions.subentry.deletion = true)
             options.hotkeys                      !== undefined || (options.hotkeys = {})
             options.hotkeys.enabled              !== undefined || (options.hotkeys.enabled = true)
-            options.hotkeys.delete               !== undefined || (options.hotkeys.delete           = [75, 8])
+            options.hotkeys.delete               !== undefined || (options.hotkeys.delete           = [8, 46, 75]) // 46 for Firefox
             options.hotkeys.exit                 !== undefined || (options.hotkeys.exit             = [27])
+            options.hotkeys.zoom                 !== undefined || (options.hotkeys.zoom             = [90])
             options.hotkeys.background           !== undefined || (options.hotkeys.background       = [66])
             options.hotkeys.focus                !== undefined || (options.hotkeys.focus            = [70])
             options.hotkeys.counterclockwise     !== undefined || (options.hotkeys.counterclockwise = [76])
@@ -600,6 +606,7 @@ TODO
             options.callbacks.onhover            !== undefined || (options.callbacks.onhover = null)
             options.callbacks.onfocus            !== undefined || (options.callbacks.onfocus = null)
             options.callbacks.ondelete           !== undefined || (options.callbacks.ondelete = null)
+            options.modes                        !== undefined || (options.modes = ["rectangle", "diagonal", "diagonal2"])
             options.mode                         !== undefined || (options.mode = "rectangle")
             options.debug                        !== undefined || (options.debug = false)
 
@@ -623,6 +630,7 @@ TODO
                 drag:     false,
                 which:    null,
                 inside:   false,
+                zoom:     false,
                 anchors:  {},
             }
 
@@ -718,8 +726,9 @@ TODO
             }
         }
 
-        BBoxAnnotator.prototype.delete_entry_interaction = function(index) {
+        BBoxAnnotator.prototype.delete_entry_interaction = function(event, index) {
             entry = bba.entries[index]
+
             if(event.shiftKey && entry.parent == null) {
                 if (this.options.confirm.delete) {
                     response = confirm("Are you sure you want to delete all sub-entries?")
@@ -771,10 +780,23 @@ TODO
 
                 key = event.which
 
+                // Shift key to zoom (un-zoom even if hotkeys are disabled)
+                if (bba.options.hotkeys.zoom.indexOf(key) != -1) {
+                    if (bba.state.zoom) {
+                        bba.zoom_finish()
+                    } else {
+                        if (bba.options.hotkeys.enabled) {
+                            bba.zoom_start()
+                        }
+                    }
+                }
+
                 if (bba.options.hotkeys.enabled) {
 
                     // Delete key pressed
                     if (bba.options.hotkeys.delete.indexOf(key) != -1) {
+                        event.preventDefault() // For Firefox
+
                         if (bba.state.mode == "selector") {
                             bba.selector_cancel(event)
                         } else if (bba.state.mode == "drag") {
@@ -795,10 +817,10 @@ TODO
                                     bba.subentries_style_visible(null)
                                 }
                             } else if (bba.state.hover != null) {
-                                bba.delete_entry_interaction(bba.state.hover)
+                                bba.delete_entry_interaction(event, bba.state.hover)
                             }
                         } else {
-                            bba.delete_entry_interaction(bba.state.hover)
+                            bba.delete_entry_interaction(event, bba.state.hover)
                         }
                     }
 
@@ -926,7 +948,6 @@ TODO
                         bba.state.mode = "magnet"
                         element = bba.elements.entries[bba.state.hover]
                         entry = bba.entries[bba.state.hover]
-                        console.log('MAGNET SETTING ' + entry.closest)
                         // VERSION 1
                         resize_handle = element.resize[entry.closest]
                         bba.resize_start(resize_handle, event)
@@ -1011,22 +1032,25 @@ TODO
                         if (bba.state.hover != null) {
                             entry = bba.entries[bba.state.hover]
                             element = bba.elements.entries[bba.state.hover]
-                            bba.label_entry(bba.state.hover, entry.label)
 
-                            if(bba.state.focus == null || bba.state.focus != bba.state.hover) {
-                                if(bba.state.focus2 == null) {
-                                    // Set the other entries to be transparent
-                                    bba.entries_style_transparent(1.0)
+                            if (entry !== undefined && element !== undefined) {
+                                bba.label_entry(bba.state.hover, entry.label)
 
-                                    if (bba.options.handles.close.enabled) {
-                                        element.close.show()
-                                    }
-                                    if (bba.options.handles.rotate.enabled) {
-                                        element.rotate.show()
-                                    }
-                                    for (var key in element.resize) {
-                                        if (bba.options.handles.resize.enabled) {
-                                            element.resize[key].show()
+                                if(bba.state.focus == null || bba.state.focus != bba.state.hover) {
+                                    if(bba.state.focus2 == null) {
+                                        // Set the other entries to be transparent
+                                        bba.entries_style_transparent(1.0)
+
+                                        if (bba.options.handles.close.enabled) {
+                                            element.close.show()
+                                        }
+                                        if (bba.options.handles.rotate.enabled) {
+                                            element.rotate.show()
+                                        }
+                                        for (var key in element.resize) {
+                                            if (bba.options.handles.resize.enabled) {
+                                                element.resize[key].show()
+                                            }
                                         }
                                     }
                                 }
@@ -1043,13 +1067,17 @@ TODO
                         if (bba.state.hover != null) {
                             entry = bba.entries[bba.state.hover]
                             element = bba.elements.entries[bba.state.hover]
-                            bba.label_entry(bba.state.hover, entry.label)
-                            if (bba.options.handles.close.enabled) {
-                                element.close.show()
-                            }
-                            for (var key in element.resize) {
-                                if (bba.options.handles.resize.enabled) {
-                                    element.resize[key].show()
+
+                            if (entry !== undefined && element !== undefined) {
+
+                                bba.label_entry(bba.state.hover, entry.label)
+                                if (bba.options.handles.close.enabled) {
+                                    element.close.show()
+                                }
+                                for (var key in element.resize) {
+                                    if (bba.options.handles.resize.enabled) {
+                                        element.resize[key].show()
+                                    }
                                 }
                             }
                         }
@@ -1081,38 +1109,74 @@ TODO
         }
 
         BBoxAnnotator.prototype.resize = function() {
-            var w1, h1, w2, h2
+            var w1, h1, w2, h2, offset, left, margin
+
+            zoom = this.state.zoom
+            margin = 5
 
             // Get the proportions of the image and
+            width = $(window).width()
+            height = $(window).height()
             w1 = this.elements.image.width
             h1 = this.elements.image.height
 
-            w2 = this.elements.container.width()
+            if (zoom) {
+                h2 = height - 2 * margin
+                w2 = (h2 / h1) * w1
+                w2 = Math.min(w2, width - 2 * margin)
+            } else {
+                w2 = this.elements.container.width()
+                limit1 = this.options.limits.frame.width
+                limit2 = (this.options.limits.frame.height / h1) * w1
+                w2 = Math.min(w2, this.options.limits.frame.width, limit2)
+            }
 
-            limit1 = this.options.limits.frame.width
-            limit2 = (this.options.limits.frame.height / h1) * w1
-            w2 = Math.min(w2, this.options.limits.frame.width, limit2)
             h2 = (w2 / w1) * h1
+
+            if (zoom) {
+                offset = this.elements.container.offset()
+                left = -1.0 * offset.left
+                left += (width - w2) * 0.5
+                left = left + "px"
+                scroll = offset.top - margin
+            } else {
+                left = ""
+                scroll = 0
+            }
+
+            $('html, body').animate({scrollTop: scroll});
 
             this.elements.frame.css({
                 "width": w2 + "px",
                 "height": h2 + "px",
+                "left": left
             })
             this.elements.container.css({
                 "height": h2 + "px",
+                "width": w2 + "px",
             })
 
             // Update the assignments, not based on percentages
             for (var index = 0; index < this.entries.length; index++) {
                 entry = this.entries[index]
                 // We only need to update the assignments for parents, which will update all of their sub-entries
-                if(entry.parent == null) {
+                if(entry !== undefined && entry.parent == null) {
                     this.assignment_entry(index)
                 }
             }
 
             // Update console
             this.refresh()
+        }
+
+        BBoxAnnotator.prototype.zoom_start = function() {
+            this.state.zoom = true
+            this.resize()
+        }
+
+        BBoxAnnotator.prototype.zoom_finish = function() {
+            this.state.zoom = false
+            this.resize()
         }
 
         BBoxAnnotator.prototype.update_mode = function(proposed_mode) {
@@ -1551,7 +1615,7 @@ TODO
             this.state.subentry = null
             if (index != null && this.state.focus == null) {
                 entry = this.entries[index]
-                if (entry.parent != null) {
+                if (entry !== undefined && entry.parent != null) {
                     this.state.subentry = index
                     index = entry.parent
                 }
@@ -1582,7 +1646,7 @@ TODO
                 } else {
                     for (var index_entry = 0; index_entry < this.elements.entries.length; index_entry++) {
                         entry = this.entries[index_entry]
-                        if(entry.parent != null && entry.parent == this.state.focus) {
+                        if(entry !== undefined && entry.parent != null && entry.parent == this.state.focus) {
                             this.entry_style_default(index_entry)
                         }
                     }
@@ -1823,24 +1887,28 @@ TODO
                     holder = ''
                 }
                 if(entry.highlighted) {
-                    var species_strs = [];
-                    species_strs['giraffe_masai']       = 'Masai Giraffe'
-                    species_strs['giraffe_reticulated'] = 'Reticulated Giraffe'
-                    species_strs['turtle_sea']          = 'Sea Turtle'
-                    species_strs['turtle_hawksbill']    = 'Sea Turtle'
-                    species_strs['turtle_green']        = 'Sea Turtle'
-                    species_strs['whale_fluke']         = 'Whale Fluke'
-                    species_strs['zebra_grevys']        = 'Grevy\'s Zebra'
-                    species_strs['zebra_plains']        = 'Plains Zebra'
+                    // var species_strs = []
+                    // species_strs['giraffe_masai']       = 'Masai Giraffe'
+                    // species_strs['giraffe_reticulated'] = 'Reticulated Giraffe'
+                    // species_strs['turtle_sea']          = 'Sea Turtle'
+                    // species_strs['turtle_hawksbill']    = 'Sea Turtle'
+                    // species_strs['turtle_green']        = 'Sea Turtle'
+                    // species_strs['whale_fluke']         = 'Whale Fluke'
+                    // species_strs['zebra_grevys']        = 'Grevy\'s Zebra'
+                    // species_strs['zebra_plains']        = 'Plains Zebra'
 
-                    value1 = entry['metadata']['viewpoint1']
-                    value2 = entry['metadata']['viewpoint2']
-                    value3 = entry['metadata']['viewpoint3']
-                    species = entry['metadata']['species']
-                    tag = normalize_viewpoint(value1, value2, value3)
-                    holder = species_strs[species] + ' (' + tag + ')'
-                    element.label.html(holder)
+                    // value1 = entry['metadata']['viewpoint1']
+                    // value2 = entry['metadata']['viewpoint2']
+                    // value3 = entry['metadata']['viewpoint3']
+                    // species = entry['metadata']['species']
+                    // tag = normalize_viewpoint(value1, value2, value3)
+                    // holder = species_strs[species] + ' (' + tag + ')'
+                    // element.label.html(holder)
+
                     // holder = holder + "*"
+                    // element.label.html(holder)
+
+                    holder = "*"
                     element.label.html(holder)
                 } else {
                     holder = ''
@@ -1923,6 +1991,10 @@ TODO
             entry = this.entries[index]
             element = this.elements.entries[index]
 
+            if (entry === undefined || element === undefined) {
+                return
+            }
+
             // Get the furthest point
             closest_dist = Infinity
             closest_key = null
@@ -1931,7 +2003,7 @@ TODO
                 offset = handle.offset()
                 diff_x = event.pageX - offset.left
                 diff_y = event.pageY - offset.top
-                dist = Math.sqrt(diff_x ** 2 + diff_y ** 2)
+                dist = Math.sqrt(Math.pow(diff_x, 2) + Math.pow(diff_y, 2))
                 // Get the closest
                 if (dist < closest_dist) {
                     closest_dist = dist
@@ -2017,7 +2089,7 @@ TODO
                 y: centers.entry.y - centers.parent.y,
             }
 
-            hypo = Math.sqrt(delta.x ** 2 + delta.y ** 2)
+            hypo = Math.sqrt(Math.pow(delta.x, 2) + Math.pow(delta.y, 2))
             angle = calculate_angle(centers.entry, centers.parent)
 
             element.assignment.css({
@@ -2052,6 +2124,11 @@ TODO
 
             entry = this.entries[index]
             element = this.elements.entries[index]
+
+            if (entry === undefined || element === undefined) {
+                return
+            }
+
             offset = this.elements.container.offset()
 
             offset = {
@@ -2508,7 +2585,7 @@ TODO
             }
 
             theta = this.state.anchors.element.theta
-            hypo = Math.sqrt(delta.x ** 2 + delta.y ** 2)
+            hypo = Math.sqrt(Math.pow(delta.x, 2) + Math.pow(delta.y, 2))
             angle = calculate_angle(this.state.anchors.cursor, cursor)
             diff_angle = angle - theta
 
@@ -2527,7 +2604,7 @@ TODO
                 x: Math.cos(theta) * diff.x,
                 y: Math.sin(theta) * diff.x,
             }
-            components.x.hypo = Math.sqrt(components.x.x ** 2 + components.x.y ** 2)
+            components.x.hypo = Math.sqrt(Math.pow(components.x.x, 2) + Math.pow(components.x.y, 2))
             if (components.x.x > 0) {
                 components.x.hypo *= -1.0
             }
@@ -2535,7 +2612,7 @@ TODO
                 x: Math.sin(-theta) * diff.y,
                 y: Math.cos(-theta) * diff.y,
             }
-            components.y.hypo = Math.sqrt(components.y.x ** 2 + components.y.y ** 2)
+            components.y.hypo = Math.sqrt(Math.pow(components.y.x, 2) + Math.pow(components.y.y, 2))
             if (components.y.y > 0) {
                 components.y.hypo *= -1.0
             }
@@ -2791,6 +2868,10 @@ TODO
                 data = this.bbs.finish(event)
 
                 invalid = false
+                invalid = invalid || (isNaN(data.pixels.left))
+                invalid = invalid || (isNaN(data.pixels.top))
+                invalid = invalid || (isNaN(data.pixels.width))
+                invalid = invalid || (isNaN(data.pixels.height))
                 invalid = invalid || (data.pixels.width * data.pixels.height <= this.options.limits.entry.area)
                 invalid = invalid || (data.pixels.width <= this.options.limits.entry.width)
                 invalid = invalid || (data.pixels.height <= this.options.limits.entry.height)
@@ -3168,7 +3249,7 @@ TODO
                 bba.state.mode = "close"
 
                 // Delete the entry from the annotator
-                bba.delete_entry_interaction(index)
+                bba.delete_entry_interaction(event, index)
             })
 
             // Register event for when the close button is selected for a specific bbox
