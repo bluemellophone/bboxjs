@@ -11547,6 +11547,7 @@ var bboxjs = (function () {
     };
 
     BBoxAnnotator.prototype.delete_entry_interaction = function (event, index) {
+      var bba = this;
       entry = bba.entries[index];
 
       if (event.shiftKey && entry.parent == null) {
@@ -13176,7 +13177,8 @@ var bboxjs = (function () {
     };
 
     BBoxAnnotator.prototype.resize_start = function (resize_element, event) {
-      var index, entry, element, handle, border_side; // Find the parent bbox of the close button and the bbox's index
+      var index, entry, element, handle, border_side;
+      var bba = this; // Find the parent bbox of the close button and the bbox's index
 
       parent = resize_element.parent('.' + bba.options.classes.bbox);
       index = parent.prevAll('.' + bba.options.classes.bbox).length;
@@ -13261,7 +13263,8 @@ var bboxjs = (function () {
     };
 
     BBoxAnnotator.prototype.resize_finish = function (event) {
-      var element, index; // Correct the orientation back to the original state
+      var element, index;
+      var bba = this; // Correct the orientation back to the original state
 
       for (var index = bba.state.orientation; index > 0; index--) {
         bba.orient_entry(event, 'right');

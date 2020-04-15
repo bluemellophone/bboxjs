@@ -905,6 +905,7 @@ this.BBoxAnnotator = (function () {
         event,
         index,
     ) {
+        var bba = this
         entry = bba.entries[index]
 
         if (event.shiftKey && entry.parent == null) {
@@ -2931,6 +2932,7 @@ this.BBoxAnnotator = (function () {
         event,
     ) {
         var index, entry, element, handle, border_side
+        var bba = this
 
         // Find the parent bbox of the close button and the bbox's index
         parent = resize_element.parent('.' + bba.options.classes.bbox)
@@ -3031,6 +3033,7 @@ this.BBoxAnnotator = (function () {
 
     BBoxAnnotator.prototype.resize_finish = function (event) {
         var element, index
+        var bba = this
 
         // Correct the orientation back to the original state
         for (var index = bba.state.orientation; index > 0; index--) {
